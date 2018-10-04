@@ -2,6 +2,102 @@ import operator
 
 from math import log
 
+import matplotlib.pyplot as plt
+
+
+decisionNode = dict(boxstyle="sawtooth",fc="0.8")
+leafNode = dict(boxstyle = "round4",fc = "0.8")
+arrow_args = dict(arrowstyle="<-")
+
+def plotNode(nodeText, centerPt, parentPt, nodeType):
+    createPlot.ax1.annotate(nodeText,xy=parentPt,xycoords = 'axes fraction',xytext=centerPt, textcoords='axes fraction',
+		va="center", ha="center", bbox=nodeType, arrowprops=arrow_args)
+
+def createPlot(myTree):
+    fig = plt.figure(1, facecolor='white')
+    fig.clf()
+    axprops = dict(xticks=[],yticks=[])
+    createPlot.ax1 = plt.subplot(111, frameon=False, **axprops)
+    plotTree.totalW = float(getNumLeafs(myTree))
+    plotTree.totalD = float(getTreeDepth(myTree))
+    plotTree.xOff = -0.5 / plotTree.totalW;plotTree.yOff = 1.0;
+    plotTree(myTree, (0.5, 1.0), '')
+    plt.show()
+
+def getTreeDepth(myTree):
+    maxDepth = 0
+    firstStr = list(myTree.keys())[0]
+    secondDict = myTree[firstStr]
+    for key in secondDict:
+        if type(secondDict[key]).__name__ == 'dict':
+            thisDepth = 1 + getTreeDepth(secondDict[key])
+        else:thisDepth = 1
+        if thisDepth > maxDepth:
+            maxDepth = thisDepth
+    return maxDepth
+
+def getNumLeafs(myTree):
+    numLeafs = 0
+    firstStr = list(myTree.keys())[0]
+    secondDict = myTree[firstStr]
+    for key in secondDict:
+        if type(secondDict[key]).__name__ == 'dict':
+            numLeafs += getNumLeafs(secondDict[key])
+        else:numLeafs += 1
+    return numLeafs
+
+def retrieveTree(i):
+    listOfTrees =[{'no surfacing': {0: 'no', 1: {'flippers': {0: 'no', 1: 'yes'}}}},
+                  {'no surfacing': {0: 'no', 1: {'flippers': {0: {'head': {0: 'no', 1: 'yes'}}, 1: 'no'}}}}
+                  ]
+    return listOfTrees[i]
+
+def plotMidText(cntrPt, parentPt, txtString):
+    xMid = (parentPt[0]-cntrPt[0])/2.0 + cntrPt[0]
+    yMid = (parentPt[1]-cntrPt[1])/2.0 + cntrPt[1]
+    createPlot.ax1.text(xMid, yMid, txtString, va="center", ha="center", rotation=30)
+
+def plotTree(myTree, parentPt, nodeTxt):#if the first key tells you what feat was split on
+    numLeafs = getNumLeafs(myTree)  #this determines the x width of this tree
+    depth = getTreeDepth(myTree)
+    firstStr = list(myTree.keys())[0]     #the text label for this node should be this
+    cntrPt = (plotTree.xOff + (1.0 + float(numLeafs))/2.0/plotTree.totalW, plotTree.yOff)
+    plotMidText(cntrPt, parentPt, nodeTxt)
+    plotNode(firstStr, cntrPt, parentPt, decisionNode)
+    secondDict = myTree[firstStr]
+    plotTree.yOff = plotTree.yOff - 1.0/plotTree.totalD
+    for key in secondDict.keys():
+        if type(secondDict[key]).__name__=='dict':#test to see if the nodes are dictonaires, if not they are leaf nodes
+            plotTree(secondDict[key],cntrPt,str(key))        #recursion
+        else:   #it's a leaf node print the leaf node
+            plotTree.xOff = plotTree.xOff + 1.0/plotTree.totalW
+            plotNode(secondDict[key], (plotTree.xOff, plotTree.yOff), cntrPt, leafNode)
+            plotMidText((plotTree.xOff, plotTree.yOff), cntrPt, str(key))
+    plotTree.yOff = plotTree.yOff + 1.0/plotTree.totalD
+#if you do get a dictonary you know it's a tree, and the first element will be another dict
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 创建数据集
 def creatDataSet():
@@ -21,6 +117,7 @@ def creatDataSet():
     Labels = ['height','lenght','area','eccen','p_block','p_and','mean_tr','blackpix','blackand','wb_trans']
     return page_blocks,Labels
 
+# 投票选出分类标签最多的作为类标签
 def majorityCnt(classList):
     classCount = { }
     for vote in classList:
@@ -30,7 +127,7 @@ def majorityCnt(classList):
     sortedClassCount = sorted(classCount.items(),key=operator.itemgetter(1),reverse=True)
     return sortedClassCount[0][0]      # 返回出现次数最多的元素
 
-
+# 计算香浓熵
 def calcShannonEnt(dataSet):
     numOfEntires = len(dataSet)                                 # 返回数据集的行数
     labelCount = { }                                            # 保存每个标签(Label)出现次数的字典
@@ -45,7 +142,7 @@ def calcShannonEnt(dataSet):
         shannonEnt -= prob * log(prob, 2)                       # 公式计算香浓熵
     return shannonEnt
 
-
+# 划分数据集
 def splitDataSet(dataSet, axis, value):
     returnDataset = []
     for featVec in dataSet:
@@ -55,7 +152,7 @@ def splitDataSet(dataSet, axis, value):
             returnDataset.append(reducedFeatVec)                # 将符合条件的添加到返回的数据集
     return returnDataset
 
-
+# 选择最优特征标签，对最优标签进行划分
 def chooseBestFeatureToSplit (dataSet):
     numOfFeat = len(dataSet[0]) - 1                              # 特征值的数量 = 10
     baseEntropy = calcShannonEnt(dataSet)                        # 计算数据集的香浓熵
@@ -78,6 +175,7 @@ def chooseBestFeatureToSplit (dataSet):
             bestFeature = i
     return bestFeature                                            # 返回信息增益最大的特征的索引值
 
+# 递归建树
 def createTree(dataSet, Labels):
     classList = [example[-1] for example in dataSet]             # 取分类标签 1,2,3,4,5
     if classList.count(classList[0]) == len(classList):
@@ -87,7 +185,7 @@ def createTree(dataSet, Labels):
     bestFeature = chooseBestFeatureToSplit(dataSet)              # 选择最优特征的下标 是 bestFeature
     # print(bestFeature)
     bestFeatureLabel = Labels[bestFeature]                       # 最优特征的标签
-    # featLabels.append(bestFeatureLabel)                          # 汇入 最优特征标签列表
+    # featLabels.append(bestFeatureLabel)                        # 汇入 最优特征标签列表
     myTree = {bestFeatureLabel: {}}                              # 根据最优特征的标签生成树
     del (Labels[bestFeature])                                    # 删除已经使用过的特征标签
     featValues = [example[bestFeature] for example in dataSet]   # 得到训练集中所有最优特征的属性值
@@ -97,7 +195,7 @@ def createTree(dataSet, Labels):
         myTree[bestFeatureLabel][value] = createTree(splitDataSet(dataSet, bestFeature, value), subLabels)
     return myTree
 
-
+# 根据所建的决策树进行分类处理测试集
 def classify(inputTree, featLabels, testVec):
     firstStr = list(inputTree.keys())[0]
     secondDict = inputTree[firstStr]                            # 获取下一个字典
@@ -112,15 +210,15 @@ def classify(inputTree, featLabels, testVec):
 
 if __name__ == '__main__':
     dataSet,Labels = creatDataSet()
+    numTestVecs = 300  # 测试数据数量 前300个
+    errorCount = 0.0
     featLabels = list(Labels);
+    # myTree = createTree(dataSet,Labels)
     myTree = createTree(dataSet,Labels)
 
+    # createPlot(myTree)
     # testVec = ['5', '7', '35', '1.400', '.400','.657',  '2.33',  '14',  '23',  '6']  # 测试数据
-    # 7   1      7   .143 1.00 1.00     7.00      7      7      1 4
-    #    8 231   1848 28.875 .872 .882   179.00   1611   1630      9
-    # 158 167  26386  1.057 .160 .276     8.24   4213   7279    511 5
-    numTestVecs = 300
-    errorCount = 0.0
+    # testVec = ['158', '167', '26386', '1.057', '0.160', '.276',  '8.24', '4213', '7279', '511']
 
     for i in range(numTestVecs):
         # 暂时取50个作为测试集
@@ -129,10 +227,10 @@ if __name__ == '__main__':
         if result != dataSet[i][-1]:
             errorCount += 1.0
     print("错误率:%f%%" %(errorCount/float(numTestVecs)*100))
-    # testVec = ['158', '167', '26386', '1.057', '0.160', '.276',  '8.24', '4213', '7279', '511']
 
     # result = classify(myTree, featLabels, testVec)
     # print(result)
+
 
 
     
