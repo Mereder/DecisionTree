@@ -216,7 +216,7 @@ if __name__ == '__main__':
     # myTree = createTree(dataSet,Labels)
     myTree = createTree(dataSet,Labels)
 
-    # createPlot(myTree)
+    createPlot(myTree)
     # testVec = ['5', '7', '35', '1.400', '.400','.657',  '2.33',  '14',  '23',  '6']  # 测试数据
     # testVec = ['158', '167', '26386', '1.057', '0.160', '.276',  '8.24', '4213', '7279', '511']
 
@@ -230,7 +230,3 @@ if __name__ == '__main__':
 
     # result = classify(myTree, featLabels, testVec)
     # print(result)
-
-
-
-    
